@@ -1,16 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,13 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Phone, Shirt, List, LayoutDashboard, Loader2 } from "lucide-react";
+import { LayoutDashboard, List, Loader2, Pencil, Phone, Plus, Search, Shirt, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { OrderForm, type Order } from "@/components/orders/OrderForm";
+import { type Order } from "@/components/orders/OrderForm";
 import { StatusBadge } from "@/components/orders/StatusBadge";
 import { StatsCards } from "@/components/orders/StatsCards";
+import { dummyOrdersApi } from "@/lib/dummy-orders-api";
 
-const fmt = (n: number) => `৳${Number(n || 0).toLocaleString("en-BD")}`;
+const fmt = (n: number) => `BDT ${Number(n || 0).toLocaleString("en-BD")}`;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -42,267 +35,228 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Order | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [view, setView] = useState<"dashboard" | "orders">("dashboard");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const load = async () => {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .order("order_date", { ascending: false })
-      .order("created_at", { ascending: true });
-    if (error) toast.error(error.message);
-    else setOrders((data ?? []) as Order[]);
-    setLoading(false);
+    try {
+      setOrders(await dummyOrdersApi.list());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load orders";
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     load();
-    const channel = supabase
-      .channel("orders-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => load())
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   const filtered = useMemo(() => {
-    return orders.filter((o) => {
+    const query = search.trim().toLowerCase();
+    return orders.filter((order) => {
       const matchSearch =
-        !search ||
-        o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-        o.order_number.toLowerCase().includes(search.toLowerCase()) ||
-        (o.phone ?? "").includes(search);
-      const matchStatus = statusFilter === "all" || o.delivery_status === statusFilter;
+        !query ||
+        order.customer_name.toLowerCase().includes(query) ||
+        order.order_number.toLowerCase().includes(query) ||
+        (order.phone ?? "").includes(query);
+      const matchStatus = statusFilter === "all" || order.delivery_status === statusFilter;
       return matchSearch && matchStatus;
     });
   }, [orders, search, statusFilter]);
 
+  const selectedOrder = orders.find((order) => order.id === deleteId);
+
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeletingId(deleteId);
-    const { error } = await supabase.from("orders").delete().eq("id", deleteId);
-    if (error) toast.error(error.message);
-    else toast.success("Order deleted");
-    setDeleteId(null);
-    setDeletingId(null);
+    try {
+      await dummyOrdersApi.delete(deleteId);
+      setOrders((current) => current.filter((order) => order.id !== deleteId));
+      toast.success("Order deleted");
+      setDeleteId(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not delete order";
+      toast.error(message);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
-  const openNew = () => {
-    navigate("/new-order");
-  };
-  const openEdit = async (o: Order) => {
-    navigate("/new-order", { state: { editOrder: o } });
+  const openEdit = (order: Order) => {
+    if (!order.id) return;
+    setEditingId(order.id);
+    navigate("/new-order", { state: { editOrder: order } });
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-gradient-to-r from-blue-900 to-black text-white shadow-[var(--shadow-elegant)]">
-        <div className="container flex flex-col items-center gap-4 py-6">
-          <div className="flex items-center gap-3">
-            <img src="/js_main_logo_png.png" alt="JSBD Logo" className="h-12 w-auto" />
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Jersey Solutions Bangladesh</h1>
+    <div className="min-h-screen bg-background pb-24">
+      <header className="sticky top-0 z-20 border-b border-border bg-card/95 text-foreground shadow-sm backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white">
+              <img src="/js_main_logo_png.png" alt="JSBD Logo" className="max-h-9 w-auto" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Order Management</p>
+              <h1 className="truncate text-lg font-bold leading-tight">Jersey Solutions BD</h1>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button
-            onClick={() => setView(view === "orders" ? "dashboard" : "orders")}
-            size="lg"
-            variant="secondary"
-            className="gap-2 font-semibold"
-          >
-            {view === "orders" ? <LayoutDashboard className="h-5 w-5" /> : <List className="h-5 w-5" />}
-            {view === "orders" ? "Dashboard" : "All Orders"}
+          <Button onClick={() => navigate("/new-order")} size="icon" className="h-11 w-11 rounded-2xl">
+            <Plus className="h-5 w-5" />
           </Button>
-          <Button onClick={openNew} size="lg" variant="secondary" className="gap-2 font-semibold">
-            <Plus className="h-5 w-5" /> New Order
-          </Button>
-          </div>
         </div>
       </header>
 
-      <main className="container space-y-6 py-8">
+      <main className="mx-auto max-w-5xl space-y-5 px-4 py-5">
+        <section className="rounded-3xl border border-border/70 bg-card p-5 shadow-[var(--shadow-card)]">
+          <p className="text-sm font-semibold uppercase text-muted-foreground">Today&apos;s desk</p>
+          <div className="mt-2 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-4xl font-black leading-none text-foreground">{orders.length}</h2>
+              <p className="mt-1 text-sm font-medium text-muted-foreground">Total saved orders</p>
+            </div>
+            <div className="rounded-2xl bg-primary/10 px-4 py-3 text-right">
+              <p className="text-xs font-semibold uppercase text-primary/80">Active</p>
+              <p className="text-2xl font-black text-primary">{orders.filter((o) => ["Pending", "In Progress", "Ready"].includes(o.delivery_status)).length}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-1 shadow-[var(--shadow-card)]">
+          <Button
+            onClick={() => setView("dashboard")}
+            variant={view === "dashboard" ? "default" : "ghost"}
+            className="h-11 rounded-xl gap-2"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </Button>
+          <Button
+            onClick={() => setView("orders")}
+            variant={view === "orders" ? "default" : "ghost"}
+            className="h-11 rounded-xl gap-2"
+          >
+            <List className="h-4 w-4" />
+            Orders
+          </Button>
+        </div>
+
         {view === "dashboard" ? (
           <StatsCards orders={orders} />
         ) : (
-          <>
-        {/* Filters */}
-        <Card className="flex items-center gap-3 p-4 shadow-[var(--shadow-card)]">
-          <div className="relative w-1/2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by customer, order #, phone..."
-              className="pl-9 text-sm"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-1/2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Ready">Ready</SelectItem>
-              <SelectItem value="Delivered">Delivered</SelectItem>
-              <SelectItem value="Cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </Card>
+          <section className="space-y-4">
+            <Card className="rounded-3xl border-border/70 p-4 shadow-[var(--shadow-card)]">
+              <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search customer, order, phone"
+                    className="h-12 rounded-2xl pl-9"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-12 rounded-2xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Ready">Ready</SelectItem>
+                    <SelectItem value="Delivered">Delivered</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </Card>
 
-        {/* Orders Table */}
-        <Card className="overflow-hidden shadow-[var(--shadow-card)]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                <tr>
-                  <th className="px-3 py-3">Order ID</th>
-                  <th className="px-3 py-3">Date</th>
-                  <th className="px-3 py-3">Customer Name</th>
-                  <th className="px-3 py-3">Phone</th>
-                  <th className="px-3 py-3">Source</th>
-                  <th className="px-3 py-3">Jersey Type</th>
-                  <th className="px-3 py-3">GSM</th>
-                  <th className="px-3 py-3 text-left">Qty (pcs)</th>
-                  <th className="px-3 py-3 text-left">Gift</th>
-                  <th className="px-3 py-3 text-left">Selling Price/pcs</th>
-                  <th className="px-3 py-3 text-left">Total Revenue</th>
-                  <th className="px-3 py-3 text-left">Total Amount</th>
-                  <th className="px-3 py-3 text-left">Advance</th>
-                  <th className="px-3 py-3 text-left">Delivery Charge</th>
-                  <th className="px-3 py-3 text-left">Due</th>
-                  <th className="px-3 py-3 text-left">Factory Cost</th>
-                  <th className="px-3 py-3 text-left">Factory Total</th>
-                  <th className="px-3 py-3 text-left">Factory Advance</th>
-                  <th className="px-3 py-3 text-left">Factory Due</th>
-                  <th className="px-3 py-3 text-left">Profit</th>
-                  <th className="px-3 py-3">Delivery Status</th>
-                  <th className="px-3 py-3">Design</th>
-                  <th className="px-3 py-3 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border whitespace-nowrap">
-                {loading ? (
-                  <tr><td colSpan={23} className="py-12 text-center text-muted-foreground">Loading...</td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={23} className="py-12 text-center text-muted-foreground">
-                    No orders yet. Click "New Order" to add one.
-                  </td></tr>
-                ) : (
-                  filtered.map((o) => {
-                    const revenue = Number(o.quantity) * Number(o.selling_price_per_pcs);
-                    return (
-                    <tr key={o.id} className="hover:bg-muted/30">
-                      <td className="px-3 py-3 font-semibold">#{o.order_number}</td>
-                      <td className="px-3 py-3 font-semibold text-muted-foreground">{o.order_date}</td>
-                      <td className="px-3 py-3 font-semibold">{o.customer_name}</td>
-                      <td className="px-3 py-3 font-semibold text-muted-foreground">
-                        {o.phone ? (
-                          <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{o.phone}</span>
-                        ) : "-"}
-                      </td>
-                      <td className="px-3 py-3 font-semibold">{o.source || "-"}</td>
-                      <td className="px-3 py-3 font-semibold">{o.jersey_type || "-"}</td>
-                      <td className="px-3 py-3 font-semibold">{o.gsm || "-"}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{o.quantity}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{o.gift || 0}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.selling_price_per_pcs))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(revenue)}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.total_amount))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.advance))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.delivery_charge))}</td>
-                      <td className="px-3 py-3 text-right">
-                        <span className={Number(o.due) > 0 ? "font-semibold text-warning" : "text-muted-foreground"}>
-                          {fmt(Number(o.due))}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.factory_cost_per_pcs))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.factory_total))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.factory_advance))}</td>
-                      <td className="px-3 py-3 text-left">
-                        <span className={Number(o.factory_due) > 0 ? "font-semibold text-warning" : "text-muted-foreground"}>
-                          {fmt(Number(o.factory_due))}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-left font-bold text-success">{fmt(Number(o.profit))}</td>
-                      <td className="px-3 py-3"><StatusBadge status={o.delivery_status} /></td>
-                      <td className="px-3 py-3">
-                        {o.design ? (
-                          <img 
-                            src={o.design} 
-                            alt="Design" 
-                            className="h-12 w-12 object-cover rounded border border-gray-200" 
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              target.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        ) : (
-                          <span className="text-muted-foreground font-semibold">-</span>
-                        )}
-                        {(!o.design || o.design === '') && (
-                          <span className="text-muted-foreground font-semibold">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex justify-end gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => openEdit(o)} 
-                            disabled={editingId === o.id}
-                            className="hover:bg-blue-600 hover:text-white transition-colors duration-200"
-                          >
-                            {editingId === o.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Pencil className="h-4 w-4" />
-                            )}
+            {loading ? (
+              <Card className="rounded-3xl p-10 text-center text-muted-foreground">
+                <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />
+                Loading orders
+              </Card>
+            ) : filtered.length === 0 ? (
+              <Card className="rounded-3xl p-10 text-center text-muted-foreground">
+                No orders yet. Tap New Order to add one.
+              </Card>
+            ) : (
+              <div className="grid gap-3">
+                {filtered.map((order) => {
+                  const revenue = Number(order.quantity) * Number(order.selling_price_per_pcs);
+                  return (
+                    <Card key={order.id} className="rounded-3xl border-border/70 p-4 shadow-[var(--shadow-card)]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase text-muted-foreground">#{order.order_number}</p>
+                          <h3 className="mt-1 truncate text-lg font-bold">{order.customer_name}</h3>
+                          <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                            <Phone className="h-3.5 w-3.5" />
+                            {order.phone || "No phone"}
+                          </p>
+                        </div>
+                        <StatusBadge status={order.delivery_status} />
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        <div className="rounded-2xl bg-secondary p-3">
+                          <p className="text-xs text-muted-foreground">Qty</p>
+                          <p className="font-bold">{order.quantity}</p>
+                        </div>
+                        <div className="rounded-2xl bg-secondary p-3">
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="font-bold">{fmt(Number(order.total_amount))}</p>
+                        </div>
+                        <div className="rounded-2xl bg-secondary p-3">
+                          <p className="text-xs text-muted-foreground">Due</p>
+                          <p className={Number(order.due) > 0 ? "font-bold text-warning" : "font-bold text-muted-foreground"}>{fmt(Number(order.due))}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+                        <div className="min-w-0 text-sm text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <Shirt className="h-4 w-4" />
+                            {order.jersey_type || "-"} - {fmt(revenue)}
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(order)} disabled={editingId === order.id} className="rounded-2xl">
+                            {editingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => setDeleteId(o.id!)} 
-                            disabled={deletingId === o.id}
-                            className="hover:bg-blue-600 hover:text-white transition-colors duration-200"
-                          >
-                            {deletingId === o.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(order.id!)} disabled={deletingId === order.id} className="rounded-2xl text-destructive hover:text-destructive">
+                            {deletingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                           </Button>
                         </div>
-                      </td>
-                    </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-          </>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         )}
       </main>
 
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-        <AlertDialogContent className="max-w-lg mx-4 sm:max-w-[90vw]">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:hidden">
+        <Button onClick={() => navigate("/new-order")} className="h-12 w-full rounded-2xl gap-2 font-bold shadow-[var(--shadow-elegant)]">
+          <Plus className="h-5 w-5" />
+          New Order
+        </Button>
+      </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent className="mx-4 rounded-3xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this order?</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to delete this item?</AlertDialogDescription>
+            <AlertDialogTitle>Delete order #{selectedOrder?.order_number}?</AlertDialogTitle>
+            <AlertDialogDescription>This removes the order from local storage.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white hover:shadow-lg transition-all duration-200 ease-in-out font-semibold">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

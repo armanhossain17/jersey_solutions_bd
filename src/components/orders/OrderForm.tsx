@@ -10,9 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { dummyOrdersApi } from "@/lib/dummy-orders-api";
 
 export type Order = {
   id?: string;
@@ -71,13 +71,15 @@ interface Props {
 
 const Field = ({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) => (
   <div className="space-y-1.5">
-    <Label className="text-xs font-medium text-muted-foreground">
+    <Label className="text-xs font-semibold uppercase text-muted-foreground">
       {label}
       {required && <span className="text-red-500 ml-1">*</span>}
     </Label>
     {children}
   </div>
 );
+
+const editableNumberValue = (value: number) => (Number(value || 0) === 0 ? "" : value);
 
 export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   const [form, setForm] = useState<Order>(initial ?? empty);
@@ -98,7 +100,6 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
     const factory_due = factory_total - (form.factory_advance || 0);
     const profit = total_amount - factory_total;
     setForm((f) => ({ ...f, total_amount, due, factory_total, factory_due, profit }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     form.quantity,
     form.gift,
@@ -118,11 +119,13 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   const validatePhoneNumber = (phone: string) => {
     // Remove all non-digit characters
     const digitsOnly = phone.replace(/\D/g, '');
-    // Check if it starts with +880 or 01
+    // Accept local BD format (01...) or country-code format (+8801...).
     if (digitsOnly.startsWith('880')) {
-      return digitsOnly.length === 13; // +880 1XXX-XXXXXX (13 digits with country code)
+      return digitsOnly.length === 13;
+    } else if (digitsOnly.startsWith('01')) {
+      return digitsOnly.length === 11;
     } else if (digitsOnly.startsWith('1')) {
-      return digitsOnly.length === 10; // 1XXX-XXXXXX (10 digits)
+      return digitsOnly.length === 10;
     }
     return false;
   };
@@ -134,12 +137,27 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // For now, just store the filename. In production, you'd upload to cloud storage
       const fileName = file.name;
-      const fileUrl = URL.createObjectURL(file);
-      setForm((prev) => ({ ...prev, design: fileUrl }));
-      setDesignFile(fileName);
-      toast.success(`File "${fileName}" selected`);
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload an image file");
+        return;
+      }
+
+      if (file.size > 1024 * 1024) {
+        toast.error("Image must be 1MB or smaller for local storage");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setForm((prev) => ({ ...prev, design: String(reader.result || "") }));
+        setDesignFile(fileName);
+        toast.success(`File "${fileName}" selected`);
+      };
+      reader.onerror = () => {
+        toast.error("Could not read image file");
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -151,43 +169,44 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
     
     // Validate phone number if provided
     if (form.phone && !validatePhoneNumber(form.phone)) {
-      toast.error("Please enter a valid Bangladeshi phone number (e.g., +880 1XXX-XXXXXX or 01XXX-XXXXXX)");
+      toast.error("Please enter a valid Bangladeshi phone number");
       return;
     }
     
     setSaving(true);
     const payload = { ...form, phone: form.phone || null, design: form.design || null };
-    const { error } = form.id
-      ? await supabase.from("orders").update(payload).eq("id", form.id)
-      : await supabase.from("orders").insert([payload]);
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      if (form.id) await dummyOrdersApi.update(payload);
+      else await dummyOrdersApi.create(payload);
+      toast.success(form.id ? "Order updated" : "Order added");
+      onSaved();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save order";
+      toast.error(message);
+    } finally {
+      setSaving(false);
     }
-    toast.success(form.id ? "Order updated" : "Order added");
-    onSaved();
   };
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Customer Information</h3>
-        <div className="grid gap-4 md:grid-cols-3">
+    <div className="space-y-4">
+      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
+        <h3 className="mb-4 text-base font-bold text-foreground">Customer Information</h3>
+        <div className="grid gap-4 md:grid-cols-3 [&_input]:h-12 [&_input]:rounded-2xl [&_button]:h-12 [&_button]:rounded-2xl">
           <Field label="Order Number" required>
-            <Input value={form.order_number} onChange={(e) => handleTextChange("order_number", e.target.value)} placeholder="01" className="placeholder:text-sm" />
+            <Input value={form.order_number} onChange={(e) => handleTextChange("order_number", e.target.value)} placeholder="Enter order number" className="placeholder:text-sm" />
           </Field>
           <Field label="Date" required>
             <Input type="date" value={form.order_date} onChange={(e) => handleTextChange("order_date", e.target.value)} className="text-sm" />
           </Field>
           <Field label="Customer Name" required>
-            <Input value={form.customer_name} onChange={(e) => handleTextChange("customer_name", e.target.value)} placeholder="Name (Company)" className="placeholder:text-sm" />
+            <Input value={form.customer_name} onChange={(e) => handleTextChange("customer_name", e.target.value)} placeholder="Enter customer name" className="placeholder:text-sm" />
           </Field>
           <Field label="Phone Number" required>
             <Input 
               value={form.phone ?? ""} 
               onChange={(e) => setForm({ ...form, phone: e.target.value })} 
-              placeholder="+880 1XXX-XXXXXX" 
+              placeholder="Enter phone number (01547454545)" 
               className={`placeholder:text-sm ${form.phone && !validatePhoneNumber(form.phone) ? 'border-red-500 focus:border-red-500' : ''}`}
             />
           </Field>
@@ -218,9 +237,9 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
         </div>
       </section>
 
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Jersey Details</h3>
-        <div className="grid gap-4 md:grid-cols-4">
+      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
+        <h3 className="mb-4 text-base font-bold text-foreground">Jersey Details</h3>
+        <div className="grid gap-4 md:grid-cols-4 [&_input]:h-12 [&_input]:rounded-2xl [&_button]:h-12 [&_button]:rounded-2xl">
           <Field label="Jersey Type" required>
             <Select value={form.jersey_type} onValueChange={(v) => setForm({ ...form, jersey_type: v })}>
               <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
@@ -247,28 +266,28 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
             </Select>
           </Field>
           <Field label="Quantity (pcs)" required>
-            <Input type="number" value={form.quantity} onChange={(e) => handleNumberChange("quantity", e.target.value)} />
+            <Input type="number" value={editableNumberValue(form.quantity)} onChange={(e) => handleNumberChange("quantity", e.target.value)} placeholder="Enter quantity" />
           </Field>
           <Field label="Gift (pcs)">
-            <Input type="number" value={form.gift} onChange={(e) => handleNumberChange("gift", e.target.value)} />
+            <Input type="number" value={editableNumberValue(form.gift)} onChange={(e) => handleNumberChange("gift", e.target.value)} placeholder="Enter gift quantity" />
           </Field>
         </div>
       </section>
 
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Pricing & Payment</h3>
-        <div className="grid gap-4 md:grid-cols-4">
+      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
+        <h3 className="mb-4 text-base font-bold text-foreground">Pricing & Payment</h3>
+        <div className="grid gap-4 md:grid-cols-4 [&_input]:h-12 [&_input]:rounded-2xl">
           <Field label="Selling Price / pcs" required>
-            <Input type="number" value={form.selling_price_per_pcs} onChange={(e) => handleNumberChange("selling_price_per_pcs", e.target.value)} />
+            <Input type="number" value={editableNumberValue(form.selling_price_per_pcs)} onChange={(e) => handleNumberChange("selling_price_per_pcs", e.target.value)} placeholder="Enter selling price" />
           </Field>
           <Field label="Total Amount (auto)">
             <Input type="number" value={form.total_amount} readOnly className="bg-muted" />
           </Field>
           <Field label="Advance" required>
-            <Input type="number" value={form.advance} onChange={(e) => handleNumberChange("advance", e.target.value)} />
+            <Input type="number" value={editableNumberValue(form.advance)} onChange={(e) => handleNumberChange("advance", e.target.value)} placeholder="Enter advance amount" />
           </Field>
           <Field label="Delivery Charge">
-            <Input type="number" value={form.delivery_charge} onChange={(e) => handleNumberChange("delivery_charge", e.target.value)} />
+            <Input type="number" value={editableNumberValue(form.delivery_charge)} onChange={(e) => handleNumberChange("delivery_charge", e.target.value)} placeholder="Enter delivery charge" />
           </Field>
           <Field label="Due (auto)">
             <Input type="number" value={form.due} readOnly className="bg-muted" />
@@ -276,17 +295,17 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
         </div>
       </section>
 
-      <section>
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Factory Cost</h3>
-        <div className="grid gap-4 md:grid-cols-4">
+      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
+        <h3 className="mb-4 text-base font-bold text-foreground">Factory Cost</h3>
+        <div className="grid gap-4 md:grid-cols-4 [&_input]:h-12 [&_input]:rounded-2xl">
           <Field label="Factory Cost / pcs" required>
-            <Input type="number" value={form.factory_cost_per_pcs} onChange={(e) => handleNumberChange("factory_cost_per_pcs", e.target.value)} />
+            <Input type="number" value={editableNumberValue(form.factory_cost_per_pcs)} onChange={(e) => handleNumberChange("factory_cost_per_pcs", e.target.value)} placeholder="Enter factory cost" />
           </Field>
           <Field label="Factory Total (auto)">
             <Input type="number" value={form.factory_total} readOnly className="bg-muted" />
           </Field>
           <Field label="Factory Advance" required>
-            <Input type="number" value={form.factory_advance} onChange={(e) => handleNumberChange("factory_advance", e.target.value)} />
+            <Input type="number" value={editableNumberValue(form.factory_advance)} onChange={(e) => handleNumberChange("factory_advance", e.target.value)} placeholder="Enter factory advance" />
           </Field>
           <Field label="Factory Due (auto)">
             <Input type="number" value={form.factory_due} readOnly className="bg-muted" />
@@ -297,9 +316,9 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
         </div>
       </section>
 
-      <section>
+      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
         <Field label="Design">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer">
+          <div className="cursor-pointer rounded-3xl border-2 border-dashed border-border bg-secondary/60 p-6 text-center transition-colors hover:border-primary">
             <Input 
               type="file" 
               accept="image/*" 
@@ -313,7 +332,7 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
               </svg>
               {!designFile && <p className="text-sm text-gray-600 mb-1">Click to upload or drag and drop</p>}
               {designFile && <p className="text-xs text-blue-600 mb-1">Selected: {designFile}</p>}
-              {!designFile && <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>}
+              {!designFile && <p className="text-xs text-gray-500">PNG, JPG, GIF up to 1MB</p>}
             </label>
           </div>
           {form.design && (
@@ -328,15 +347,15 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
         </Field>
       </section>
 
-      <section>
+      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
         <Field label="Notes">
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add notes..." rows={2} className="placeholder:text-sm" />
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Enter order notes" rows={3} className="rounded-2xl placeholder:text-sm" />
         </Field>
       </section>
 
-      <div className="flex justify-center gap-2 pt-2">
-        <Button variant="outline" onClick={onCancel} disabled={saving} className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white hover:shadow-lg transition-all duration-200 ease-in-out">Cancel</Button>
-        <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-blue-900 to-black text-white hover:from-blue-800 hover:to-gray-900">
+      <div className="sticky bottom-4 z-10 grid grid-cols-[120px_1fr] gap-2 rounded-3xl border border-border bg-background/95 p-2 shadow-[var(--shadow-elegant)] backdrop-blur">
+        <Button variant="outline" onClick={onCancel} disabled={saving} className="h-12 rounded-2xl">Cancel</Button>
+        <Button onClick={handleSave} disabled={saving} className="h-12 rounded-2xl">
           {form.id ? "Update Order" : "Add Order"}
         </Button>
       </div>

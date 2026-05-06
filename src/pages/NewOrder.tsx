@@ -1,7 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { OrderForm, type Order } from "@/components/orders/OrderForm";
 
@@ -11,41 +9,32 @@ const NewOrder = () => {
   const editOrder = location.state?.editOrder as Order | null;
   const isEditing = !!editOrder;
 
-  const handleSaved = () => {
-    navigate("/");
-  };
-
-  const handleCancel = () => {
+  const goHome = () => {
     navigate("/");
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-gradient-to-r from-blue-900 to-black text-white shadow-[var(--shadow-elegant)]">
-        <div className="container flex items-center gap-4 py-6">
+    <div className="min-h-screen bg-background pb-6">
+      <header className="sticky top-0 z-20 border-b border-border bg-card/95 text-foreground shadow-sm backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4">
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
-            onClick={handleCancel}
-            className="text-white border-white bg-transparent hover:bg-white/20 hover:text-white"
+            onClick={goHome}
+            className="h-11 w-11 rounded-2xl"
+            aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{isEditing ? "Edit Order" : "Create New Order"}</h1>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Order workspace</p>
+            <h1 className="truncate text-lg font-bold">{isEditing ? `Edit #${editOrder.order_number}` : "Create New Order"}</h1>
           </div>
         </div>
       </header>
 
-      <main className="container py-8">
-        <Card className="max-w-4xl mx-auto p-6 shadow-[var(--shadow-card)]">
-          <OrderForm
-            initial={editOrder}
-            onSaved={handleSaved}
-            onCancel={handleCancel}
-          />
-        </Card>
+      <main className="mx-auto max-w-5xl px-4 py-5">
+        <OrderForm initial={editOrder} onSaved={goHome} onCancel={goHome} />
       </main>
     </div>
   );

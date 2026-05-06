@@ -1,35 +1,31 @@
 import { Card } from "@/components/ui/card";
-import { Package, DollarSign, TrendingUp, Clock } from "lucide-react";
+import { Clock, DollarSign, Package, TrendingUp } from "lucide-react";
 import type { Order } from "./OrderForm";
 
-const fmt = (n: number) => `৳${n.toLocaleString("en-BD")}`;
+const fmt = (n: number) => `BDT ${Number(n || 0).toLocaleString("en-BD")}`;
 
 export const StatsCards = ({ orders }: { orders: Order[] }) => {
   const totalOrders = orders.length;
-  const revenue = orders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-  const profit = orders.reduce((s, o) => s + Number(o.profit || 0), 0);
-  const totalDue = orders.reduce((s, o) => s + Number(o.due || 0), 0);
+  const revenue = orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
+  const profit = orders.reduce((sum, order) => sum + Number(order.profit || 0), 0);
+  const totalDue = orders.reduce((sum, order) => sum + Number(order.due || 0), 0);
 
   const items = [
-    { label: "Total Orders", value: totalOrders.toString(), icon: Package, color: "from-blue-600 to-blue-400" },
-    { label: "Revenue", value: fmt(revenue), icon: DollarSign, color: "from-purple-600 to-purple-400" },
-    { label: "Profit", value: fmt(profit), icon: TrendingUp, color: "from-green-600 to-green-400" },
-    { label: "Pending Due", value: fmt(totalDue), icon: Clock, color: "from-orange-600 to-orange-400" },
+    { label: "Orders", value: totalOrders.toString(), icon: Package, tone: "bg-primary/10 text-primary", border: "border-l-primary" },
+    { label: "Revenue", value: fmt(revenue), icon: DollarSign, tone: "bg-info/10 text-info", border: "border-l-info" },
+    { label: "Profit", value: fmt(profit), icon: TrendingUp, tone: "bg-success/10 text-success", border: "border-l-success" },
+    { label: "Due", value: fmt(totalDue), icon: Clock, tone: "bg-warning/10 text-warning", border: "border-l-warning" },
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {items.map((it) => (
-        <Card key={it.label} className={`overflow-hidden border-border/60 shadow-[var(--shadow-card)] bg-gradient-to-br ${it.color}`}>
-          <div className="flex items-center justify-between p-5">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-white/80">{it.label}</p>
-              <p className="mt-1 text-2xl font-bold text-white">{it.value}</p>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-              <it.icon className="h-6 w-6 text-white" />
-            </div>
+    <div className="grid grid-cols-2 gap-3">
+      {items.map((item) => (
+        <Card key={item.label} className={`rounded-3xl border-border/70 border-l-4 bg-card p-4 shadow-[var(--shadow-card)] ${item.border}`}>
+          <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${item.tone}`}>
+            <item.icon className="h-5 w-5" />
           </div>
+          <p className="text-xs font-bold uppercase text-muted-foreground">{item.label}</p>
+          <p className="mt-1 break-words text-xl font-black leading-tight text-foreground">{item.value}</p>
         </Card>
       ))}
     </div>
