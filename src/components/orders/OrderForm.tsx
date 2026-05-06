@@ -70,6 +70,8 @@ interface Props {
 
 const fmt = (n: number) => `BDT ${Number(n || 0).toLocaleString("en-BD")}`;
 const num = (v: string) => (v === "" ? 0 : Number(v));
+const editableNumberValue = (value: number) => (Number(value || 0) === 0 ? "" : value);
+const maxDesignSizeMb = 2;
 
 const Field = ({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) => (
   <div className="space-y-1.5">
@@ -143,10 +145,29 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const fileUrl = URL.createObjectURL(file);
-    setForm((prev) => ({ ...prev, design: fileUrl }));
-    setDesignFile(file.name);
-    toast.success(`File "${file.name}" selected`);
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > maxDesignSizeMb * 1024 * 1024) {
+      toast.error(`Design image must be under ${maxDesignSizeMb}MB`);
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({ ...prev, design: String(reader.result || "") }));
+      setDesignFile(file.name);
+      toast.success(`File "${file.name}" selected`);
+    };
+    reader.onerror = () => {
+      toast.error("Could not read the design image");
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
@@ -183,19 +204,19 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
           <SectionTitle icon={UserRound} title="Customer" iconClass="bg-primary/10 text-primary" />
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="Order Number" required>
-              <Input value={form.order_number} onChange={(e) => handleTextChange("order_number", e.target.value)} placeholder="01" />
+              <Input value={form.order_number} onChange={(e) => handleTextChange("order_number", e.target.value)} placeholder="Enter order number" />
             </Field>
             <Field label="Date" required>
               <Input type="date" value={form.order_date} onChange={(e) => handleTextChange("order_date", e.target.value)} />
             </Field>
             <Field label="Customer Name" required>
-              <Input value={form.customer_name} onChange={(e) => handleTextChange("customer_name", e.target.value)} placeholder="Name or company" />
+              <Input value={form.customer_name} onChange={(e) => handleTextChange("customer_name", e.target.value)} placeholder="Enter customer name" />
             </Field>
             <Field label="Phone Number" required>
               <Input
                 value={form.phone ?? ""}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+880 1XXX-XXXXXX"
+                placeholder="Enter phone number"
                 className={form.phone && !validatePhoneNumber(form.phone) ? "border-destructive focus-visible:ring-destructive" : ""}
               />
             </Field>
@@ -255,10 +276,10 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
               </Select>
             </Field>
             <Field label="Quantity" required>
-              <Input type="number" value={form.quantity} onChange={(e) => handleNumberChange("quantity", e.target.value)} />
+              <Input type="number" value={editableNumberValue(form.quantity)} onChange={(e) => handleNumberChange("quantity", e.target.value)} placeholder="Enter total pcs" />
             </Field>
             <Field label="Gift">
-              <Input type="number" value={form.gift} onChange={(e) => handleNumberChange("gift", e.target.value)} />
+              <Input type="number" value={editableNumberValue(form.gift)} onChange={(e) => handleNumberChange("gift", e.target.value)} placeholder="Enter free gift pcs" />
             </Field>
           </div>
         </section>
@@ -267,16 +288,16 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
           <SectionTitle icon={WalletCards} title="Pricing & Payment" iconClass="bg-success/10 text-success" />
           <div className="grid gap-4 md:grid-cols-4">
             <Field label="Selling Price / pcs" required>
-              <Input type="number" value={form.selling_price_per_pcs} onChange={(e) => handleNumberChange("selling_price_per_pcs", e.target.value)} />
+              <Input type="number" value={editableNumberValue(form.selling_price_per_pcs)} onChange={(e) => handleNumberChange("selling_price_per_pcs", e.target.value)} placeholder="Enter price per pcs" />
             </Field>
             <Field label="Total Amount">
               <Input type="number" value={form.total_amount} readOnly className="bg-muted font-semibold" />
             </Field>
             <Field label="Advance" required>
-              <Input type="number" value={form.advance} onChange={(e) => handleNumberChange("advance", e.target.value)} />
+              <Input type="number" value={editableNumberValue(form.advance)} onChange={(e) => handleNumberChange("advance", e.target.value)} placeholder="Enter paid advance" />
             </Field>
             <Field label="Delivery Charge">
-              <Input type="number" value={form.delivery_charge} onChange={(e) => handleNumberChange("delivery_charge", e.target.value)} />
+              <Input type="number" value={editableNumberValue(form.delivery_charge)} onChange={(e) => handleNumberChange("delivery_charge", e.target.value)} placeholder="Enter delivery fee" />
             </Field>
             <Field label="Due">
               <Input type="number" value={form.due} readOnly className="bg-muted font-semibold" />
@@ -288,13 +309,13 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
           <SectionTitle icon={Factory} title="Factory Cost" iconClass="bg-warning/10 text-warning" />
           <div className="grid gap-4 md:grid-cols-4">
             <Field label="Factory Cost / pcs" required>
-              <Input type="number" value={form.factory_cost_per_pcs} onChange={(e) => handleNumberChange("factory_cost_per_pcs", e.target.value)} />
+              <Input type="number" value={editableNumberValue(form.factory_cost_per_pcs)} onChange={(e) => handleNumberChange("factory_cost_per_pcs", e.target.value)} placeholder="Enter cost per pcs" />
             </Field>
             <Field label="Factory Total">
               <Input type="number" value={form.factory_total} readOnly className="bg-muted font-semibold" />
             </Field>
             <Field label="Factory Advance" required>
-              <Input type="number" value={form.factory_advance} onChange={(e) => handleNumberChange("factory_advance", e.target.value)} />
+              <Input type="number" value={editableNumberValue(form.factory_advance)} onChange={(e) => handleNumberChange("factory_advance", e.target.value)} placeholder="Enter factory paid" />
             </Field>
             <Field label="Factory Due">
               <Input type="number" value={form.factory_due} readOnly className="bg-muted font-semibold" />
@@ -314,7 +335,7 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
           >
             <Upload className="mb-3 h-8 w-8 text-primary" />
             <span className="text-sm font-semibold">{designFile ? designFile : "Upload design image"}</span>
-            <span className="mt-1 text-xs text-muted-foreground">PNG, JPG, or GIF</span>
+            <span className="mt-1 text-xs text-muted-foreground">PNG, JPG, or GIF under {maxDesignSizeMb}MB</span>
           </label>
           {form.design && (
             <div className="mt-4 rounded-lg border border-border bg-white p-3">

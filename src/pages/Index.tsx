@@ -269,7 +269,14 @@ const Index = () => {
                           <td className="px-4 py-3"><StatusBadge status={order.delivery_status} /></td>
                           <td className="px-4 py-3">
                             {order.design ? (
-                              <img src={order.design} alt="Design" className="h-11 w-11 rounded-md border border-border object-cover" />
+                              <img
+                                src={order.design}
+                                alt={`Design for order ${order.order_number}`}
+                                className="h-11 w-11 rounded-md border border-border object-cover"
+                                onError={(event) => {
+                                  event.currentTarget.style.display = "none";
+                                }}
+                              />
                             ) : (
                               <div className="flex h-11 w-11 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground">
                                 <ImageIcon className="h-4 w-4" />
