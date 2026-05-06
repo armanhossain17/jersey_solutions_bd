@@ -5,13 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -28,13 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Phone, Shirt, List, LayoutDashboard, Loader2 } from "lucide-react";
+import { ArrowUpRight, ImageIcon, LayoutDashboard, List, Loader2, Pencil, Phone, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { OrderForm, type Order } from "@/components/orders/OrderForm";
+import { type Order } from "@/components/orders/OrderForm";
 import { StatusBadge } from "@/components/orders/StatusBadge";
 import { StatsCards } from "@/components/orders/StatsCards";
 
-const fmt = (n: number) => `৳${Number(n || 0).toLocaleString("en-BD")}`;
+const fmt = (n: number) => `BDT ${Number(n || 0).toLocaleString("en-BD")}`;
+
+const statuses = ["Pending", "In Progress", "Ready", "Delivered", "Cancelled"];
 
 const Index = () => {
   const navigate = useNavigate();
@@ -42,8 +37,6 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Order | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [view, setView] = useState<"dashboard" | "orders">("dashboard");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -72,16 +65,28 @@ const Index = () => {
   }, []);
 
   const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
     return orders.filter((o) => {
       const matchSearch =
-        !search ||
-        o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
-        o.order_number.toLowerCase().includes(search.toLowerCase()) ||
-        (o.phone ?? "").includes(search);
+        !query ||
+        o.customer_name.toLowerCase().includes(query) ||
+        o.order_number.toLowerCase().includes(query) ||
+        (o.phone ?? "").includes(query);
       const matchStatus = statusFilter === "all" || o.delivery_status === statusFilter;
       return matchSearch && matchStatus;
     });
   }, [orders, search, statusFilter]);
+
+  const statusCounts = useMemo(
+    () =>
+      statuses.map((status) => ({
+        status,
+        count: orders.filter((order) => order.delivery_status === status).length,
+      })),
+    [orders],
+  );
+
+  const selectedOrder = orders.find((order) => order.id === deleteId);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -93,216 +98,216 @@ const Index = () => {
     setDeletingId(null);
   };
 
-  const openNew = () => {
-    navigate("/new-order");
-  };
-  const openEdit = async (o: Order) => {
-    navigate("/new-order", { state: { editOrder: o } });
+  const openEdit = (order: Order) => {
+    setEditingId(order.id ?? null);
+    navigate("/new-order", { state: { editOrder: order } });
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-gradient-to-r from-blue-900 to-black text-white shadow-[var(--shadow-elegant)]">
-        <div className="container flex flex-col items-center gap-4 py-6">
+      <header className="border-b border-border bg-card shadow-sm">
+        <div className="container flex flex-col gap-5 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <img src="/js_main_logo_png.png" alt="JSBD Logo" className="h-12 w-auto" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-white">
+              <img src="/js_main_logo_png.png" alt="Jersey Solutions Bangladesh" className="max-h-10 w-auto" />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Jersey Solutions Bangladesh</h1>
+              <p className="text-xs font-bold uppercase text-muted-foreground">Order management</p>
+              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Jersey Solutions Bangladesh</h1>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button
-            onClick={() => setView(view === "orders" ? "dashboard" : "orders")}
-            size="lg"
-            variant="secondary"
-            className="gap-2 font-semibold"
-          >
-            {view === "orders" ? <LayoutDashboard className="h-5 w-5" /> : <List className="h-5 w-5" />}
-            {view === "orders" ? "Dashboard" : "All Orders"}
-          </Button>
-          <Button onClick={openNew} size="lg" variant="secondary" className="gap-2 font-semibold">
-            <Plus className="h-5 w-5" /> New Order
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => setView(view === "orders" ? "dashboard" : "orders")}
+              variant="outline"
+              className="gap-2"
+            >
+              {view === "orders" ? <LayoutDashboard className="h-4 w-4" /> : <List className="h-4 w-4" />}
+              {view === "orders" ? "Dashboard" : "All Orders"}
+            </Button>
+            <Button onClick={() => navigate("/new-order")} className="gap-2">
+              <Plus className="h-4 w-4" /> New Order
+            </Button>
           </div>
         </div>
       </header>
 
-      <main className="container space-y-6 py-8">
+      <main className="container space-y-6 py-6">
+        <section className="rounded-lg border border-border bg-[var(--gradient-hero)] p-5 shadow-[var(--shadow-card)]">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-bold uppercase text-primary">Production desk</p>
+              <h2 className="mt-1 max-w-3xl text-2xl font-bold text-foreground sm:text-3xl">
+                Orders, payments, factory dues, and delivery status in one place.
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm font-medium text-muted-foreground">
+                Use the status cards to jump into active work and keep cash collection visible.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 sm:min-w-[390px]">
+              {statusCounts.slice(0, 3).map((item) => (
+                <button
+                  key={item.status}
+                  onClick={() => {
+                    setView("orders");
+                    setStatusFilter(item.status);
+                  }}
+                  className="group rounded-md border border-border bg-card px-4 py-3 text-left shadow-[var(--shadow-card)] transition hover:border-primary/40 hover:bg-secondary/60"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-2xl font-bold text-foreground">{item.count}</span>
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground transition group-hover:text-primary" />
+                  </span>
+                  <span className="mt-1 block truncate text-xs font-semibold uppercase text-muted-foreground">{item.status}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {view === "dashboard" ? (
           <StatsCards orders={orders} />
         ) : (
           <>
-        {/* Filters */}
-        <Card className="flex items-center gap-3 p-4 shadow-[var(--shadow-card)]">
-          <div className="relative w-1/2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by customer, order #, phone..."
-              className="pl-9 text-sm"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-1/2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Ready">Ready</SelectItem>
-              <SelectItem value="Delivered">Delivered</SelectItem>
-              <SelectItem value="Cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </Card>
+            <Card className="border-border/80 bg-card p-4 shadow-[var(--shadow-card)]">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold">Orders</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filtered.length} of {orders.length} orders
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_220px] lg:w-[560px]">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search customer, order, phone"
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      {statuses.map((status) => (
+                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </Card>
 
-        {/* Orders Table */}
-        <Card className="overflow-hidden shadow-[var(--shadow-card)]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                <tr>
-                  <th className="px-3 py-3">Order ID</th>
-                  <th className="px-3 py-3">Date</th>
-                  <th className="px-3 py-3">Customer Name</th>
-                  <th className="px-3 py-3">Phone</th>
-                  <th className="px-3 py-3">Source</th>
-                  <th className="px-3 py-3">Jersey Type</th>
-                  <th className="px-3 py-3">GSM</th>
-                  <th className="px-3 py-3 text-left">Qty (pcs)</th>
-                  <th className="px-3 py-3 text-left">Gift</th>
-                  <th className="px-3 py-3 text-left">Selling Price/pcs</th>
-                  <th className="px-3 py-3 text-left">Total Revenue</th>
-                  <th className="px-3 py-3 text-left">Total Amount</th>
-                  <th className="px-3 py-3 text-left">Advance</th>
-                  <th className="px-3 py-3 text-left">Delivery Charge</th>
-                  <th className="px-3 py-3 text-left">Due</th>
-                  <th className="px-3 py-3 text-left">Factory Cost</th>
-                  <th className="px-3 py-3 text-left">Factory Total</th>
-                  <th className="px-3 py-3 text-left">Factory Advance</th>
-                  <th className="px-3 py-3 text-left">Factory Due</th>
-                  <th className="px-3 py-3 text-left">Profit</th>
-                  <th className="px-3 py-3">Delivery Status</th>
-                  <th className="px-3 py-3">Design</th>
-                  <th className="px-3 py-3 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border whitespace-nowrap">
-                {loading ? (
-                  <tr><td colSpan={23} className="py-12 text-center text-muted-foreground">Loading...</td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={23} className="py-12 text-center text-muted-foreground">
-                    No orders yet. Click "New Order" to add one.
-                  </td></tr>
-                ) : (
-                  filtered.map((o) => {
-                    const revenue = Number(o.quantity) * Number(o.selling_price_per_pcs);
-                    return (
-                    <tr key={o.id} className="hover:bg-muted/30">
-                      <td className="px-3 py-3 font-semibold">#{o.order_number}</td>
-                      <td className="px-3 py-3 font-semibold text-muted-foreground">{o.order_date}</td>
-                      <td className="px-3 py-3 font-semibold">{o.customer_name}</td>
-                      <td className="px-3 py-3 font-semibold text-muted-foreground">
-                        {o.phone ? (
-                          <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{o.phone}</span>
-                        ) : "-"}
-                      </td>
-                      <td className="px-3 py-3 font-semibold">{o.source || "-"}</td>
-                      <td className="px-3 py-3 font-semibold">{o.jersey_type || "-"}</td>
-                      <td className="px-3 py-3 font-semibold">{o.gsm || "-"}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{o.quantity}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{o.gift || 0}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.selling_price_per_pcs))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(revenue)}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.total_amount))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.advance))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.delivery_charge))}</td>
-                      <td className="px-3 py-3 text-right">
-                        <span className={Number(o.due) > 0 ? "font-semibold text-warning" : "text-muted-foreground"}>
-                          {fmt(Number(o.due))}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.factory_cost_per_pcs))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.factory_total))}</td>
-                      <td className="px-3 py-3 text-left font-semibold">{fmt(Number(o.factory_advance))}</td>
-                      <td className="px-3 py-3 text-left">
-                        <span className={Number(o.factory_due) > 0 ? "font-semibold text-warning" : "text-muted-foreground"}>
-                          {fmt(Number(o.factory_due))}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-left font-bold text-success">{fmt(Number(o.profit))}</td>
-                      <td className="px-3 py-3"><StatusBadge status={o.delivery_status} /></td>
-                      <td className="px-3 py-3">
-                        {o.design ? (
-                          <img 
-                            src={o.design} 
-                            alt="Design" 
-                            className="h-12 w-12 object-cover rounded border border-gray-200" 
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              target.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        ) : (
-                          <span className="text-muted-foreground font-semibold">-</span>
-                        )}
-                        {(!o.design || o.design === '') && (
-                          <span className="text-muted-foreground font-semibold">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex justify-end gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => openEdit(o)} 
-                            disabled={editingId === o.id}
-                            className="hover:bg-blue-600 hover:text-white transition-colors duration-200"
-                          >
-                            {editingId === o.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Pencil className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => setDeleteId(o.id!)} 
-                            disabled={deletingId === o.id}
-                            className="hover:bg-blue-600 hover:text-white transition-colors duration-200"
-                          >
-                            {deletingId === o.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </td>
+            <Card className="overflow-hidden border-border/80 shadow-[var(--shadow-card)]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1180px] text-sm">
+                  <thead className="bg-slate-100 text-left text-xs font-bold uppercase text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Order</th>
+                      <th className="px-4 py-3">Customer</th>
+                      <th className="px-4 py-3">Jersey</th>
+                      <th className="px-4 py-3 text-right">Qty</th>
+                      <th className="px-4 py-3 text-right">Total</th>
+                      <th className="px-4 py-3 text-right">Due</th>
+                      <th className="px-4 py-3 text-right">Factory Due</th>
+                      <th className="px-4 py-3 text-right">Profit</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Design</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={11} className="py-14 text-center text-muted-foreground">
+                          <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin" />
+                          Loading orders
+                        </td>
+                      </tr>
+                    ) : filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="py-14 text-center text-muted-foreground">
+                          No orders match the current filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((order) => (
+                        <tr key={order.id} className="bg-card transition hover:bg-muted/35">
+                          <td className="px-4 py-3">
+                            <p className="font-semibold">#{order.order_number}</p>
+                            <p className="text-xs text-muted-foreground">{order.order_date}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold">{order.customer_name}</p>
+                            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              {order.phone || "No phone"} - {order.source || "No source"}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold">{order.jersey_type || "-"}</p>
+                            <p className="text-xs text-muted-foreground">{order.gsm || "GSM not set"}</p>
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold">
+                            {order.quantity}
+                            {Number(order.gift) > 0 && <span className="ml-1 text-xs text-muted-foreground">+{order.gift}</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold">{fmt(Number(order.total_amount))}</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={Number(order.due) > 0 ? "font-semibold text-warning" : "text-muted-foreground"}>
+                              {fmt(Number(order.due))}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={Number(order.factory_due) > 0 ? "font-semibold text-warning" : "text-muted-foreground"}>
+                              {fmt(Number(order.factory_due))}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-success">{fmt(Number(order.profit))}</td>
+                          <td className="px-4 py-3"><StatusBadge status={order.delivery_status} /></td>
+                          <td className="px-4 py-3">
+                            {order.design ? (
+                              <img src={order.design} alt="Design" className="h-11 w-11 rounded-md border border-border object-cover" />
+                            ) : (
+                              <div className="flex h-11 w-11 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground">
+                                <ImageIcon className="h-4 w-4" />
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(order)} disabled={editingId === order.id}>
+                                {editingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => setDeleteId(order.id!)} disabled={deletingId === order.id}>
+                                {deletingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           </>
         )}
       </main>
 
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-        <AlertDialogContent className="max-w-lg mx-4 sm:max-w-[90vw]">
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this order?</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to delete this item?</AlertDialogDescription>
+            <AlertDialogTitle>Delete order #{selectedOrder?.order_number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the order for {selectedOrder?.customer_name ?? "this customer"} from the dashboard.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white hover:shadow-lg transition-all duration-200 ease-in-out font-semibold">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
