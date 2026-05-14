@@ -52,6 +52,7 @@ export type Order = {
   profit: number;
   delivery_status: string;
   design: string | null;
+  designs?: string[];
 };
 
 const empty: Order = {
@@ -80,7 +81,8 @@ const empty: Order = {
   factory_due: 0,
   profit: 0,
   delivery_status: "Pending",
-  design: ""
+  design: "",
+  designs: [],
 };
 
 interface Props {
@@ -271,12 +273,13 @@ const DateSelect = ({ value, onChange }: { value: string; onChange: (value: stri
 
 export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   const [form, setForm] = useState<Order>(initial ?? empty);
-  const [designFile, setDesignFile] = useState<string | null>(null);
+  const [designFiles, setDesignFiles] = useState<string[]>([]);
   const [notes, setNotes] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setForm(initial ?? empty);
+    setDesignFiles([]);
   }, [initial]);
 
   // Auto-calculate derived fields
@@ -330,29 +333,43 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const fileName = file.name;
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please upload an image file");
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      const invalidFile = files.find((file) => !file.type.startsWith("image/"));
+      if (invalidFile) {
+        toast.error("Please upload image files only");
         return;
       }
 
-      if (file.size > 1024 * 1024) {
-        toast.error("Image must be 1MB or smaller for local storage");
+      const oversizedFile = files.find((file) => file.size > 1024 * 1024);
+      if (oversizedFile) {
+        toast.error("Each image must be 1MB or smaller for local storage");
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        setForm((prev) => ({ ...prev, design: String(reader.result || "") }));
-        setDesignFile(fileName);
-        toast.success(`File "${fileName}" selected`);
-      };
-      reader.onerror = () => {
-        toast.error("Could not read image file");
-      };
-      reader.readAsDataURL(file);
+      Promise.all(
+        files.map(
+          (file) =>
+            new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result || ""));
+              reader.onerror = () => reject(new Error("Could not read image file"));
+              reader.readAsDataURL(file);
+            })
+        )
+      )
+        .then((images) => {
+          setForm((prev) => {
+            const currentDesigns = prev.designs?.length ? prev.designs : prev.design ? [prev.design] : [];
+            const nextDesigns = [...currentDesigns, ...images];
+            return { ...prev, design: nextDesigns[0] ?? null, designs: nextDesigns };
+          });
+          setDesignFiles((current) => [...current, ...files.map((file) => file.name)]);
+          toast.success(`${files.length} image${files.length > 1 ? "s" : ""} selected`);
+        })
+        .catch(() => {
+          toast.error("Could not read image files");
+        });
     }
   };
 
@@ -369,7 +386,7 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
     }
     
     setSaving(true);
-    const payload = { ...form, phone: form.phone || null, design: form.design || null };
+    const payload = { ...form, phone: form.phone || null, design: form.design || null, designs: form.designs ?? [] };
     try {
       if (form.id) await dummyOrdersApi.update(payload);
       else await dummyOrdersApi.create(payload);
@@ -508,6 +525,7 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
             <Input 
               type="file" 
               accept="image/*" 
+              multiple
               className="hidden"
               id="design-upload"
               onChange={handleFileUpload}
@@ -516,18 +534,22 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
               <svg className="w-8 h-8 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              {!designFile && <p className="text-sm text-gray-600 mb-1">Tap to upload design</p>}
-              {designFile && <p className="break-words text-xs text-blue-600 mb-1">Selected: {designFile}</p>}
-              {!designFile && <p className="text-xs text-gray-500">PNG, JPG, GIF up to 1MB</p>}
+              {designFiles.length === 0 && <p className="text-sm text-gray-600 mb-1">Tap to upload designs</p>}
+              {designFiles.length > 0 && <p className="break-words text-xs text-blue-600 mb-1">Selected: {designFiles.length} image{designFiles.length > 1 ? "s" : ""}</p>}
+              {designFiles.length === 0 && <p className="text-xs text-gray-500">PNG, JPG, GIF up to 1MB each</p>}
             </label>
           </div>
-          {form.design && (
-            <div className="mt-4 flex justify-center rounded-2xl border-2 border-gray-200 p-3 sm:p-4">
-              <img 
-                src={form.design} 
-                alt="Design preview" 
-                className="h-40 max-w-full rounded-md object-contain sm:h-48"
-              />
+          {(form.designs?.length || form.design) && (
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {(form.designs?.length ? form.designs : form.design ? [form.design] : []).map((image, index) => (
+                <div key={`${image.slice(0, 24)}-${index}`} className="flex justify-center rounded-2xl border-2 border-gray-200 p-2">
+                  <img
+                    src={image}
+                    alt={`Design preview ${index + 1}`}
+                    className="h-32 max-w-full rounded-md object-contain sm:h-40"
+                  />
+                </div>
+              ))}
             </div>
           )}
         </Field>

@@ -197,6 +197,14 @@ const Index = () => {
             ) : (
               <div className="grid gap-3">
                 {filtered.map((order) => {
+                  const hasTrouserDetails =
+                    Boolean(order.trouser_type && order.trouser_type !== "None") ||
+                    Boolean(order.trouser_gsm && order.trouser_gsm !== "None") ||
+                    Number(order.trouser_quantity || 0) > 0 ||
+                    Number(order.trouser_selling_price_per_pcs || 0) > 0 ||
+                    Number(order.trouser_factory_cost_per_pcs || 0) > 0;
+                  const designImages = order.designs?.length ? order.designs : order.design ? [order.design] : [];
+
                   return (
                     <Card key={order.id} className="overflow-hidden rounded-3xl border-border/70 p-3 shadow-[var(--shadow-card)] sm:p-4">
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
@@ -208,36 +216,57 @@ const Index = () => {
                             <span className="truncate">{order.phone || "No phone"}</span>
                           </p>
                         </div>
-                        <div className="shrink-0">
+                        <div className="shrink-0 text-right">
                           <StatusBadge status={order.delivery_status} />
+                          <p className="mt-2 text-xs font-semibold text-muted-foreground">{fmtDate(order.order_date)}</p>
                         </div>
                       </div>
 
                       <div className="mt-4 grid grid-cols-2 gap-2">
                         <div className="min-w-0 rounded-2xl bg-secondary p-3">
-                          <p className="text-xs text-muted-foreground">Date</p>
-                          <p className="break-words text-sm font-bold leading-tight">{fmtDate(order.order_date)}</p>
-                        </div>
-                        <div className="min-w-0 rounded-2xl bg-secondary p-3">
                           <p className="text-xs text-muted-foreground">Jersey</p>
                           <p className="truncate text-sm font-bold leading-tight">{order.jersey_type || "-"}</p>
                         </div>
                         <div className="min-w-0 rounded-2xl bg-secondary p-3">
-                          <p className="text-xs text-muted-foreground">GSM</p>
+                          <p className="text-xs text-muted-foreground">Jersey GSM</p>
                           <p className="truncate text-sm font-bold leading-tight">{order.gsm || "-"}</p>
                         </div>
                         <div className="min-w-0 rounded-2xl bg-secondary p-3">
-                          <p className="text-xs text-muted-foreground">Qty</p>
+                          <p className="text-xs text-muted-foreground">Jersey Quantity</p>
                           <p className="break-words font-bold">{order.quantity}</p>
                         </div>
                         <div className="min-w-0 rounded-2xl bg-secondary p-3">
-                          <p className="text-xs text-muted-foreground">Selling Price</p>
+                          <p className="text-xs text-muted-foreground">Jersey Selling Price</p>
                           <p className="break-words text-sm font-bold leading-tight sm:text-base">{fmt(Number(order.selling_price_per_pcs))}</p>
                         </div>
                         <div className="min-w-0 rounded-2xl bg-secondary p-3">
-                          <p className="text-xs text-muted-foreground">Factory Cost</p>
+                          <p className="text-xs text-muted-foreground">Jersey Factory Cost</p>
                           <p className="break-words text-sm font-bold leading-tight sm:text-base">{fmt(Number(order.factory_cost_per_pcs))}</p>
                         </div>
+                        {hasTrouserDetails && (
+                          <>
+                            <div className="min-w-0 rounded-2xl bg-secondary p-3">
+                              <p className="text-xs text-muted-foreground">Trouser</p>
+                              <p className="truncate text-sm font-bold leading-tight">{order.trouser_type || "-"}</p>
+                            </div>
+                            <div className="min-w-0 rounded-2xl bg-secondary p-3">
+                              <p className="text-xs text-muted-foreground">Trouser GSM</p>
+                              <p className="truncate text-sm font-bold leading-tight">{order.trouser_gsm || "-"}</p>
+                            </div>
+                            <div className="min-w-0 rounded-2xl bg-secondary p-3">
+                              <p className="text-xs text-muted-foreground">Trouser Quantity</p>
+                              <p className="break-words font-bold">{order.trouser_quantity || 0}</p>
+                            </div>
+                            <div className="min-w-0 rounded-2xl bg-secondary p-3">
+                              <p className="text-xs text-muted-foreground">Trouser Selling Price</p>
+                              <p className="break-words text-sm font-bold leading-tight sm:text-base">{fmt(Number(order.trouser_selling_price_per_pcs || 0))}</p>
+                            </div>
+                            <div className="min-w-0 rounded-2xl bg-secondary p-3">
+                              <p className="text-xs text-muted-foreground">Trouser Factory Cost</p>
+                              <p className="break-words text-sm font-bold leading-tight sm:text-base">{fmt(Number(order.trouser_factory_cost_per_pcs || 0))}</p>
+                            </div>
+                          </>
+                        )}
                         <div className="min-w-0 rounded-2xl bg-secondary p-3">
                           <p className="text-xs text-muted-foreground">Total Amount</p>
                           <p className="break-words text-sm font-bold leading-tight sm:text-base">{fmt(Number(order.total_amount))}</p>
@@ -264,13 +293,17 @@ const Index = () => {
                         </div>
                       </div>
 
-                      {order.design && (
-                        <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-secondary/40">
-                          <img
-                            src={order.design}
-                            alt={`Design for order ${order.order_number}`}
-                            className="h-44 w-full object-contain p-2"
-                          />
+                      {designImages.length > 0 && (
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          {designImages.map((image, index) => (
+                            <div key={`${image.slice(0, 24)}-${index}`} className="overflow-hidden rounded-2xl border border-border bg-secondary/40">
+                              <img
+                                src={image}
+                                alt={`Design ${index + 1} for order ${order.order_number}`}
+                                className="h-36 w-full object-contain p-2"
+                              />
+                            </div>
+                          ))}
                         </div>
                       )}
 
