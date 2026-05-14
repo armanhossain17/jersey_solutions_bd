@@ -294,13 +294,13 @@ const Index = () => {
                       </div>
 
                       {designImages.length > 0 && (
-                        <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className={designImages.length === 1 ? "mt-4 grid grid-cols-1 gap-2" : "mt-4 grid grid-cols-2 gap-2"}>
                           {designImages.map((image, index) => (
                             <div key={`${image.slice(0, 24)}-${index}`} className="overflow-hidden rounded-2xl border border-border bg-secondary/40">
                               <img
                                 src={image}
                                 alt={`Design ${index + 1} for order ${order.order_number}`}
-                                className="h-36 w-full object-contain p-2"
+                                className={designImages.length === 1 ? "h-44 w-full object-contain p-2" : "h-36 w-full object-contain p-2"}
                               />
                             </div>
                           ))}
