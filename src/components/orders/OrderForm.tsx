@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus, X } from "lucide-react";
 import { dummyOrdersApi } from "@/lib/dummy-orders-api";
 import { cn } from "@/lib/utils";
 
@@ -373,6 +373,15 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
     }
   };
 
+  const removeDesignImage = (index: number) => {
+    setForm((prev) => {
+      const currentDesigns = prev.designs?.length ? prev.designs : prev.design ? [prev.design] : [];
+      const nextDesigns = currentDesigns.filter((_, imageIndex) => imageIndex !== index);
+      return { ...prev, design: nextDesigns[0] ?? null, designs: nextDesigns };
+    });
+    setDesignFiles((current) => current.filter((_, fileIndex) => fileIndex !== index));
+  };
+
   const handleSave = async () => {
     if (!form.order_number.trim() || !form.customer_name.trim()) {
       toast.error("Please fill all required fields");
@@ -542,7 +551,17 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
           {(form.designs?.length || form.design) && (
             <div className="mt-4 grid grid-cols-2 gap-2">
               {(form.designs?.length ? form.designs : form.design ? [form.design] : []).map((image, index) => (
-                <div key={`${image.slice(0, 24)}-${index}`} className="flex justify-center rounded-2xl border-2 border-gray-200 p-2">
+                <div key={`${image.slice(0, 24)}-${index}`} className="relative flex justify-center rounded-2xl border-2 border-gray-200 p-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    onClick={() => removeDesignImage(index)}
+                    className="absolute right-2 top-2 h-8 w-8 rounded-full bg-background/95 text-destructive shadow-sm hover:!bg-background hover:!text-destructive"
+                    aria-label={`Remove design ${index + 1}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                   <img
                     src={image}
                     alt={`Design preview ${index + 1}`}
