@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -11,8 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { dummyOrdersApi } from "@/lib/dummy-orders-api";
+import { cn } from "@/lib/utils";
 
 export type Order = {
   id?: string;
@@ -25,12 +35,17 @@ export type Order = {
   gsm: string | null;
   quantity: number;
   gift: number;
+  trouser_type: string | null;
+  trouser_gsm: string | null;
+  trouser_quantity: number;
+  trouser_selling_price_per_pcs: number;
   selling_price_per_pcs: number;
   total_amount: number;
   advance: number;
   delivery_charge: number;
   due: number;
   factory_cost_per_pcs: number;
+  trouser_factory_cost_per_pcs: number;
   factory_total: number;
   factory_advance: number;
   factory_due: number;
@@ -44,17 +59,22 @@ const empty: Order = {
   order_date: new Date().toISOString().slice(0, 10),
   customer_name: "",
   phone: "",
-  source: "Facebook Page",
+  source: "Known Person",
   jersey_type: "PP",
   gsm: "170 GSM",
   quantity: 0,
   gift: 0,
+  trouser_type: "PP",
+  trouser_gsm: "170 GSM",
+  trouser_quantity: 0,
+  trouser_selling_price_per_pcs: 0,
   selling_price_per_pcs: 0,
   total_amount: 0,
   advance: 0,
   delivery_charge: 0,
   due: 0,
   factory_cost_per_pcs: 0,
+  trouser_factory_cost_per_pcs: 0,
   factory_total: 0,
   factory_advance: 0,
   factory_due: 0,
@@ -70,8 +90,8 @@ interface Props {
 }
 
 const Field = ({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) => (
-  <div className="space-y-1.5">
-    <Label className="text-xs font-semibold uppercase text-muted-foreground">
+  <div className="min-w-0 space-y-1.5">
+    <Label className="break-words text-xs font-semibold uppercase leading-tight text-muted-foreground">
       {label}
       {required && <span className="text-red-500 ml-1">*</span>}
     </Label>
@@ -80,6 +100,171 @@ const Field = ({ label, children, required }: { label: string; children: React.R
 );
 
 const editableNumberValue = (value: number) => (Number(value || 0) === 0 ? "" : value);
+const sourceOptions = [
+  "Known Person",
+  "Junior",
+  "Friend",
+  "Referral",
+  "Repeat Customer",
+  "Direct Call",
+  "WhatsApp",
+  "Facebook Page",
+  "Instagram",
+  "Other",
+];
+const statusOptions = ["Pending", "In Progress", "Ready", "Delivered", "Cancelled"];
+const jerseyTypeOptions = [
+  "PP",
+  "Box Mash",
+  "Leaf Jacquard",
+  "Spoon Jacquard",
+  "Nike",
+  "Honeycomb",
+  "Dri-Fit",
+  "Dot Knit",
+  "Mesh",
+  "Interlock",
+  "Lycra",
+  "Microfiber",
+  "Polyester",
+  "PK",
+  "PC",
+  "Cotton",
+  "China Fabric",
+  "Thai Fabric",
+  "Sublimation",
+  "Other",
+];
+const trouserTypeOptions = ["PP", "Box Mash", "Dri-Fit", "Mesh", "Interlock", "Lycra", "Polyester", "Cotton", "Other"];
+const gsmOptions = [
+  "120 GSM",
+  "130 GSM",
+  "140 GSM",
+  "150 GSM",
+  "160 GSM",
+  "170 GSM",
+  "180 GSM",
+  "190 GSM",
+  "200 GSM",
+  "220 GSM",
+  "240 GSM",
+  "260 GSM",
+  "280 GSM",
+  "300 GSM",
+  "320 GSM",
+  "350 GSM",
+  "400 GSM",
+];
+const pad2 = (value: number | string) => String(value).padStart(2, "0");
+
+const SearchableSelect = ({
+  value,
+  onChange,
+  options,
+  placeholder = "Select option",
+  searchPlaceholder = "Search option",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "h-12 w-full justify-between rounded-2xl px-3 text-left text-base font-normal sm:text-sm",
+            open && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+          )}
+        >
+          <span className="truncate">{value || placeholder}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} className="text-base sm:text-sm" />
+          <CommandList>
+            <CommandEmpty>No option found.</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option}
+                  value={option}
+                  onSelect={() => {
+                    onChange(option);
+                    setOpen(false);
+                  }}
+                  className="py-3 text-base data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground sm:text-sm"
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === option ? "opacity-100" : "opacity-0")} />
+                  {option}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const getDateParts = (value: string) => {
+  const [year, month, day] = (value || new Date().toISOString().slice(0, 10)).split("-");
+  return {
+    year: year || String(new Date().getFullYear()),
+    month: month || pad2(new Date().getMonth() + 1),
+    day: day || pad2(new Date().getDate()),
+  };
+};
+
+const getDaysInMonth = (year: string, month: string) => new Date(Number(year), Number(month), 0).getDate();
+
+const DateSelect = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
+  const parts = getDateParts(value);
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, index) => String(currentYear - 5 + index));
+  const months = Array.from({ length: 12 }, (_, index) => pad2(index + 1));
+  const days = Array.from({ length: getDaysInMonth(parts.year, parts.month) }, (_, index) => pad2(index + 1));
+
+  const updateDate = (next: Partial<typeof parts>) => {
+    const nextParts = { ...parts, ...next };
+    const maxDay = getDaysInMonth(nextParts.year, nextParts.month);
+    const safeDay = pad2(Math.min(Number(nextParts.day), maxDay));
+    onChange(`${nextParts.year}-${nextParts.month}-${safeDay}`);
+  };
+
+  return (
+    <div className="grid grid-cols-[1fr_1fr_1.35fr] gap-2">
+      <Select value={parts.day} onValueChange={(day) => updateDate({ day })}>
+        <SelectTrigger className="h-12 min-w-0 rounded-2xl px-3 text-sm"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {days.map((day) => <SelectItem key={day} value={day}>{day}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={parts.month} onValueChange={(month) => updateDate({ month })}>
+        <SelectTrigger className="h-12 min-w-0 rounded-2xl px-3 text-sm"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {months.map((month) => <SelectItem key={month} value={month}>{month}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={parts.year} onValueChange={(year) => updateDate({ year })}>
+        <SelectTrigger className="h-12 min-w-0 rounded-2xl px-3 text-sm"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {years.map((year) => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
 
 export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   const [form, setForm] = useState<Order>(initial ?? empty);
@@ -93,10 +278,14 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
 
   // Auto-calculate derived fields
   useEffect(() => {
-    const billable = Math.max(0, (form.quantity || 0) - (form.gift || 0));
-    const total_amount = billable * (form.selling_price_per_pcs || 0);
+    const jerseyBillable = Math.max(0, (form.quantity || 0) - (form.gift || 0));
+    const jerseyTotal = jerseyBillable * (form.selling_price_per_pcs || 0);
+    const trouserTotal = (form.trouser_quantity || 0) * (form.trouser_selling_price_per_pcs || 0);
+    const total_amount = jerseyTotal + trouserTotal;
     const due = total_amount + (form.delivery_charge || 0) - (form.advance || 0);
-    const factory_total = (form.quantity || 0) * (form.factory_cost_per_pcs || 0);
+    const factory_total =
+      (form.quantity || 0) * (form.factory_cost_per_pcs || 0) +
+      (form.trouser_quantity || 0) * (form.trouser_factory_cost_per_pcs || 0);
     const factory_due = factory_total - (form.factory_advance || 0);
     const profit = total_amount - factory_total;
     setForm((f) => ({ ...f, total_amount, due, factory_total, factory_due, profit }));
@@ -104,9 +293,12 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
     form.quantity,
     form.gift,
     form.selling_price_per_pcs,
+    form.trouser_quantity,
+    form.trouser_selling_price_per_pcs,
     form.advance,
     form.delivery_charge,
     form.factory_cost_per_pcs,
+    form.trouser_factory_cost_per_pcs,
     form.factory_advance,
   ]);
 
@@ -189,15 +381,15 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   };
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
-        <h3 className="mb-4 text-base font-bold text-foreground">Customer Information</h3>
-        <div className="grid gap-4 md:grid-cols-3 [&_input]:h-12 [&_input]:rounded-2xl [&_button]:h-12 [&_button]:rounded-2xl">
+    <div className="space-y-4 pb-20 sm:pb-0">
+      <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
+        <h3 className="mb-4 text-base font-bold leading-tight text-foreground">Customer Information</h3>
+        <div className="grid min-w-0 gap-4 md:grid-cols-3 [&_button]:h-12 [&_button]:min-w-0 [&_button]:rounded-2xl [&_input]:h-12 [&_input]:min-w-0 [&_input]:rounded-2xl">
           <Field label="Order Number" required>
             <Input value={form.order_number} onChange={(e) => handleTextChange("order_number", e.target.value)} placeholder="Enter order number" className="placeholder:text-sm" />
           </Field>
           <Field label="Date" required>
-            <Input type="date" value={form.order_date} onChange={(e) => handleTextChange("order_date", e.target.value)} className="text-sm" />
+            <DateSelect value={form.order_date} onChange={(value) => handleTextChange("order_date", value)} />
           </Field>
           <Field label="Customer Name" required>
             <Input value={form.customer_name} onChange={(e) => handleTextChange("customer_name", e.target.value)} placeholder="Enter customer name" className="placeholder:text-sm" />
@@ -206,67 +398,33 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
             <Input 
               value={form.phone ?? ""} 
               onChange={(e) => setForm({ ...form, phone: e.target.value })} 
-              placeholder="Enter phone number (01547454545)" 
+              placeholder="Enter phone number" 
               className={`placeholder:text-sm ${form.phone && !validatePhoneNumber(form.phone) ? 'border-red-500 focus:border-red-500' : ''}`}
             />
           </Field>
           <Field label="Source">
-            <Select value={form.source ?? ""} onValueChange={(v) => setForm({ ...form, source: v })}>
-              <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Facebook Page">Facebook Page</SelectItem>
-                <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                <SelectItem value="Friend">Friend</SelectItem>
-                <SelectItem value="Instagram">Instagram</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect value={form.source ?? ""} onChange={(v) => setForm({ ...form, source: v })} options={sourceOptions} searchPlaceholder="Search source" />
           </Field>
           <Field label="Delivery Status" required>
-            <Select value={form.delivery_status} onValueChange={(v) => setForm({ ...form, delivery_status: v })}>
-              <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Ready">Ready</SelectItem>
-                <SelectItem value="Delivered">Delivered</SelectItem>
-                <SelectItem value="Cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect value={form.delivery_status} onChange={(v) => setForm({ ...form, delivery_status: v })} options={statusOptions} searchPlaceholder="Search status" />
           </Field>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
-        <h3 className="mb-4 text-base font-bold text-foreground">Jersey Details</h3>
-        <div className="grid gap-4 md:grid-cols-4 [&_input]:h-12 [&_input]:rounded-2xl [&_button]:h-12 [&_button]:rounded-2xl">
+      <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
+        <h3 className="mb-4 text-base font-bold leading-tight text-foreground">Jersey Details</h3>
+        <div className="grid min-w-0 gap-4 md:grid-cols-4 [&_button]:h-12 [&_button]:min-w-0 [&_button]:rounded-2xl [&_input]:h-12 [&_input]:min-w-0 [&_input]:rounded-2xl">
           <Field label="Jersey Type" required>
-            <Select value={form.jersey_type} onValueChange={(v) => setForm({ ...form, jersey_type: v })}>
-              <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PP">PP</SelectItem>
-                <SelectItem value="Box Mash">Box Mash</SelectItem>
-                <SelectItem value="Leaf Jacquard">Leaf Jacquard</SelectItem>
-                <SelectItem value="Spoon Jacquard">Spoon Jacquard</SelectItem>
-                <SelectItem value="Nike">Nike</SelectItem>
-                <SelectItem value="Honeycomb">Honeycomb</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect value={form.jersey_type ?? ""} onChange={(v) => setForm({ ...form, jersey_type: v })} options={jerseyTypeOptions} searchPlaceholder="Search jersey type" />
           </Field>
           <Field label="GSM">
-            <Select value={form.gsm ?? ""} onValueChange={(v) => setForm({ ...form, gsm: v })}>
-              <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="140 GSM">140 GSM</SelectItem>
-                <SelectItem value="160 GSM">160 GSM</SelectItem>
-                <SelectItem value="170 GSM">170 GSM</SelectItem>
-                <SelectItem value="180 GSM">180 GSM</SelectItem>
-                <SelectItem value="200 GSM">200 GSM</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect value={form.gsm ?? ""} onChange={(v) => setForm({ ...form, gsm: v })} options={gsmOptions} searchPlaceholder="Search GSM" />
           </Field>
           <Field label="Quantity (pcs)" required>
             <Input type="number" value={editableNumberValue(form.quantity)} onChange={(e) => handleNumberChange("quantity", e.target.value)} placeholder="Enter quantity" />
+          </Field>
+          <Field label="Selling Price / pcs" required>
+            <Input type="number" value={editableNumberValue(form.selling_price_per_pcs)} onChange={(e) => handleNumberChange("selling_price_per_pcs", e.target.value)} placeholder="Enter selling price" />
           </Field>
           <Field label="Gift (pcs)">
             <Input type="number" value={editableNumberValue(form.gift)} onChange={(e) => handleNumberChange("gift", e.target.value)} placeholder="Enter gift quantity" />
@@ -274,12 +432,27 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
-        <h3 className="mb-4 text-base font-bold text-foreground">Pricing & Payment</h3>
-        <div className="grid gap-4 md:grid-cols-4 [&_input]:h-12 [&_input]:rounded-2xl">
-          <Field label="Selling Price / pcs" required>
-            <Input type="number" value={editableNumberValue(form.selling_price_per_pcs)} onChange={(e) => handleNumberChange("selling_price_per_pcs", e.target.value)} placeholder="Enter selling price" />
+      <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
+        <h3 className="mb-4 text-base font-bold leading-tight text-foreground">Trouser Details</h3>
+        <div className="grid min-w-0 gap-4 md:grid-cols-3 [&_button]:h-12 [&_button]:min-w-0 [&_button]:rounded-2xl [&_input]:h-12 [&_input]:min-w-0 [&_input]:rounded-2xl">
+          <Field label="Trouser Type">
+            <SearchableSelect value={form.trouser_type ?? "PP"} onChange={(v) => setForm({ ...form, trouser_type: v })} options={trouserTypeOptions} searchPlaceholder="Search trouser type" />
           </Field>
+          <Field label="Trouser GSM">
+            <SearchableSelect value={form.trouser_gsm ?? "170 GSM"} onChange={(v) => setForm({ ...form, trouser_gsm: v })} options={gsmOptions} searchPlaceholder="Search trouser GSM" />
+          </Field>
+          <Field label="Trouser Quantity">
+            <Input type="number" value={editableNumberValue(form.trouser_quantity)} onChange={(e) => handleNumberChange("trouser_quantity", e.target.value)} placeholder="Enter trouser quantity" />
+          </Field>
+          <Field label="Selling Price / pcs">
+            <Input type="number" value={editableNumberValue(form.trouser_selling_price_per_pcs)} onChange={(e) => handleNumberChange("trouser_selling_price_per_pcs", e.target.value)} placeholder="Enter selling price" />
+          </Field>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
+        <h3 className="mb-4 text-base font-bold leading-tight text-foreground">Pricing & Payment</h3>
+        <div className="grid min-w-0 gap-4 md:grid-cols-4 [&_input]:h-12 [&_input]:min-w-0 [&_input]:rounded-2xl">
           <Field label="Total Amount (auto)">
             <Input type="number" value={form.total_amount} readOnly className="bg-muted" />
           </Field>
@@ -295,11 +468,14 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
-        <h3 className="mb-4 text-base font-bold text-foreground">Factory Cost</h3>
-        <div className="grid gap-4 md:grid-cols-4 [&_input]:h-12 [&_input]:rounded-2xl">
-          <Field label="Factory Cost / pcs" required>
-            <Input type="number" value={editableNumberValue(form.factory_cost_per_pcs)} onChange={(e) => handleNumberChange("factory_cost_per_pcs", e.target.value)} placeholder="Enter factory cost" />
+      <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
+        <h3 className="mb-4 text-base font-bold leading-tight text-foreground">Factory Cost</h3>
+        <div className="grid min-w-0 gap-4 md:grid-cols-4 [&_input]:h-12 [&_input]:min-w-0 [&_input]:rounded-2xl">
+          <Field label="Jersey Cost / pcs" required>
+            <Input type="number" value={editableNumberValue(form.factory_cost_per_pcs)} onChange={(e) => handleNumberChange("factory_cost_per_pcs", e.target.value)} placeholder="Enter jersey cost" />
+          </Field>
+          <Field label="Trouser Cost / pcs">
+            <Input type="number" value={editableNumberValue(form.trouser_factory_cost_per_pcs)} onChange={(e) => handleNumberChange("trouser_factory_cost_per_pcs", e.target.value)} placeholder="Enter trouser cost" />
           </Field>
           <Field label="Factory Total (auto)">
             <Input type="number" value={form.factory_total} readOnly className="bg-muted" />
@@ -310,15 +486,22 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
           <Field label="Factory Due (auto)">
             <Input type="number" value={form.factory_due} readOnly className="bg-muted" />
           </Field>
-          <Field label="Profit (auto)">
-            <Input type="number" value={form.profit} readOnly className="bg-success/10 font-semibold text-success" />
-          </Field>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
+      <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
+        <Field label="Profit">
+          <div className="rounded-3xl border border-success/20 bg-success/10 p-4">
+            <p className="break-words text-2xl font-black leading-tight text-success">
+              BDT {Number(form.profit || 0).toLocaleString("en-BD")}
+            </p>
+          </div>
+        </Field>
+      </section>
+
+      <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
         <Field label="Design">
-          <div className="cursor-pointer rounded-3xl border-2 border-dashed border-border bg-secondary/60 p-6 text-center transition-colors hover:border-primary">
+          <div className="cursor-pointer rounded-3xl border-2 border-dashed border-border bg-secondary/60 p-4 text-center transition-colors hover:border-primary sm:p-6">
             <Input 
               type="file" 
               accept="image/*" 
@@ -330,42 +513,43 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
               <svg className="w-8 h-8 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              {!designFile && <p className="text-sm text-gray-600 mb-1">Click to upload or drag and drop</p>}
-              {designFile && <p className="text-xs text-blue-600 mb-1">Selected: {designFile}</p>}
+              {!designFile && <p className="text-sm text-gray-600 mb-1">Tap to upload design</p>}
+              {designFile && <p className="break-words text-xs text-blue-600 mb-1">Selected: {designFile}</p>}
               {!designFile && <p className="text-xs text-gray-500">PNG, JPG, GIF up to 1MB</p>}
             </label>
           </div>
           {form.design && (
-            <div className="mt-4 border-2 border-gray-200 rounded-lg p-4 flex justify-center">
+            <div className="mt-4 flex justify-center rounded-2xl border-2 border-gray-200 p-3 sm:p-4">
               <img 
                 src={form.design} 
                 alt="Design preview" 
-                className="max-w-full h-48 object-contain rounded-md"
+                className="h-40 max-w-full rounded-md object-contain sm:h-48"
               />
             </div>
           )}
         </Field>
       </section>
 
-      <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)]">
+      <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
         <Field label="Notes">
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Enter order notes" rows={3} className="rounded-2xl placeholder:text-sm" />
         </Field>
       </section>
 
-      <div className="sticky bottom-4 z-10 grid grid-cols-[120px_1fr] gap-2 rounded-3xl border border-border bg-background/95 p-2 shadow-[var(--shadow-elegant)] backdrop-blur">
-        <Button variant="outline" onClick={onCancel} disabled={saving} className="h-12 rounded-2xl">Cancel</Button>
-        <Button onClick={handleSave} disabled={saving} className="h-12 rounded-2xl">
+      <div className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-[96px_1fr] gap-2 bg-background/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:sticky sm:bottom-4 sm:grid-cols-[120px_1fr] sm:rounded-3xl sm:border sm:border-border sm:p-2 sm:shadow-[var(--shadow-elegant)]">
+        <Button variant="outline" onClick={onCancel} disabled={saving} className="h-12 rounded-2xl font-bold">Cancel</Button>
+        <Button onClick={handleSave} disabled={saving} className="h-12 rounded-2xl gap-2 font-bold shadow-[var(--shadow-elegant)] sm:shadow-none">
+          {!form.id && <Plus className="h-5 w-5" />}
           {form.id ? "Update Order" : "Add Order"}
         </Button>
       </div>
       
       {/* Page-level loader overlay */}
       {saving && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 flex flex-col items-center gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl bg-white p-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-blue-900" />
-            <p className="text-lg font-semibold text-gray-800">
+            <p className="text-base font-semibold text-gray-800 sm:text-lg">
               {form.id ? "Updating Order..." : "Adding Order..."}
             </p>
           </div>
