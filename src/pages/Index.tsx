@@ -295,7 +295,7 @@ const Index = () => {
 
       <div className={view === "orders" ? "fixed inset-x-0 bottom-0 z-20 grid grid-cols-[96px_1fr] gap-2 bg-background/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:hidden" : "fixed inset-x-0 bottom-0 z-20 bg-background/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:hidden"}>
         {view === "orders" && (
-          <Button onClick={() => setView("dashboard")} variant="outline" className="h-12 rounded-2xl gap-2 font-bold">
+          <Button onClick={() => setView("dashboard")} variant="outline" className="h-12 rounded-2xl gap-2 font-bold hover:!bg-background hover:!text-foreground active:!bg-background active:!text-foreground">
             <ArrowLeft className="h-5 w-5" />
             Back
           </Button>
@@ -317,7 +317,7 @@ const Index = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="grid grid-cols-2 gap-2 pt-2 sm:flex sm:justify-end">
-            <AlertDialogCancel className="mt-0 h-12 rounded-2xl font-bold">
+            <AlertDialogCancel className="mt-0 h-12 rounded-2xl font-bold hover:!bg-background hover:!text-foreground active:!bg-background active:!text-foreground">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="h-12 rounded-2xl bg-destructive font-bold text-destructive-foreground hover:bg-destructive/90">

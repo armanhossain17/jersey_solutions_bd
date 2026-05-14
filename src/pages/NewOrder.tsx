@@ -21,7 +21,7 @@ const NewOrder = () => {
             variant="secondary"
             size="icon"
             onClick={goHome}
-            className="h-11 w-11 rounded-2xl"
+            className="h-11 w-11 rounded-2xl hover:!bg-secondary hover:!text-secondary-foreground active:!bg-secondary active:!text-secondary-foreground"
             aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />

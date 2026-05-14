@@ -180,10 +180,7 @@ const SearchableSelect = ({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn(
-            "h-12 w-full justify-between rounded-2xl px-3 text-left text-base font-normal sm:text-sm",
-            open && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-          )}
+          className="h-12 w-full justify-between rounded-2xl px-3 text-left text-base font-normal hover:!bg-background hover:!text-foreground sm:text-sm"
         >
           <span className="truncate">{value || placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -203,7 +200,10 @@ const SearchableSelect = ({
                     onChange(option);
                     setOpen(false);
                   }}
-                  className="py-3 text-base data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground sm:text-sm"
+                  className={cn(
+                    "py-3 text-base sm:text-sm",
+                    value === option && "bg-primary text-primary-foreground"
+                  )}
                 >
                   <Check className={cn("mr-2 h-4 w-4", value === option ? "opacity-100" : "opacity-0")} />
                   {option}
@@ -381,7 +381,7 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
   };
 
   return (
-    <div className="space-y-4 pb-20 sm:pb-0">
+    <div className="space-y-4">
       <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
         <h3 className="mb-4 text-base font-bold leading-tight text-foreground">Customer Information</h3>
         <div className="grid min-w-0 gap-4 md:grid-cols-3 [&_button]:h-12 [&_button]:min-w-0 [&_button]:rounded-2xl [&_input]:h-12 [&_input]:min-w-0 [&_input]:rounded-2xl">
@@ -536,8 +536,8 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
         </Field>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-[96px_1fr] gap-2 bg-background/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:sticky sm:bottom-4 sm:grid-cols-[120px_1fr] sm:rounded-3xl sm:border sm:border-border sm:p-2 sm:shadow-[var(--shadow-elegant)]">
-        <Button variant="outline" onClick={onCancel} disabled={saving} className="h-12 rounded-2xl font-bold">Cancel</Button>
+      <div className="grid grid-cols-[96px_1fr] gap-2 rounded-3xl bg-background/95 p-2 shadow-[var(--shadow-elegant)] backdrop-blur sm:sticky sm:bottom-4 sm:grid-cols-[120px_1fr]">
+        <Button variant="outline" onClick={onCancel} disabled={saving} className="h-12 rounded-2xl font-bold hover:!bg-background hover:!text-foreground active:!bg-background active:!text-foreground">Cancel</Button>
         <Button onClick={handleSave} disabled={saving} className="h-12 rounded-2xl gap-2 font-bold shadow-[var(--shadow-elegant)] sm:shadow-none">
           {!form.id && <Plus className="h-5 w-5" />}
           {form.id ? "Update Order" : "Add Order"}
