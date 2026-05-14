@@ -114,6 +114,7 @@ const sourceOptions = [
 ];
 const statusOptions = ["Pending", "In Progress", "Ready", "Delivered", "Cancelled"];
 const jerseyTypeOptions = [
+  "None",
   "PP",
   "Box Mash",
   "Leaf Jacquard",
@@ -135,8 +136,9 @@ const jerseyTypeOptions = [
   "Sublimation",
   "Other",
 ];
-const trouserTypeOptions = ["PP", "Box Mash", "Dri-Fit", "Mesh", "Interlock", "Lycra", "Polyester", "Cotton", "Other"];
+const trouserTypeOptions = ["None", "PP", "Box Mash", "Dri-Fit", "Mesh", "Interlock", "Lycra", "Polyester", "Cotton", "Other"];
 const gsmOptions = [
+  "None",
   "120 GSM",
   "130 GSM",
   "140 GSM",
@@ -414,16 +416,16 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
       <section className="rounded-3xl border border-border/70 bg-card p-3 shadow-[var(--shadow-card)] sm:p-4">
         <h3 className="mb-4 text-base font-bold leading-tight text-foreground">Jersey Details</h3>
         <div className="grid min-w-0 gap-4 md:grid-cols-4 [&_button]:h-12 [&_button]:min-w-0 [&_button]:rounded-2xl [&_input]:h-12 [&_input]:min-w-0 [&_input]:rounded-2xl">
-          <Field label="Jersey Type" required>
+          <Field label="Jersey Type">
             <SearchableSelect value={form.jersey_type ?? ""} onChange={(v) => setForm({ ...form, jersey_type: v })} options={jerseyTypeOptions} searchPlaceholder="Search jersey type" />
           </Field>
           <Field label="GSM">
             <SearchableSelect value={form.gsm ?? ""} onChange={(v) => setForm({ ...form, gsm: v })} options={gsmOptions} searchPlaceholder="Search GSM" />
           </Field>
-          <Field label="Quantity (pcs)" required>
+          <Field label="Quantity (pcs)">
             <Input type="number" value={editableNumberValue(form.quantity)} onChange={(e) => handleNumberChange("quantity", e.target.value)} placeholder="Enter quantity" />
           </Field>
-          <Field label="Selling Price / pcs" required>
+          <Field label="Selling Price / pcs">
             <Input type="number" value={editableNumberValue(form.selling_price_per_pcs)} onChange={(e) => handleNumberChange("selling_price_per_pcs", e.target.value)} placeholder="Enter selling price" />
           </Field>
           <Field label="Gift (pcs)">
