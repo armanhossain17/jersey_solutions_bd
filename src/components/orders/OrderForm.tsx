@@ -150,6 +150,7 @@ const gsmOptions = [
   "200 GSM",
   "220 GSM",
   "240 GSM",
+  "250 GSM",
   "260 GSM",
   "280 GSM",
   "300 GSM",
