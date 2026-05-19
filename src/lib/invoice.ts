@@ -58,6 +58,78 @@ const createWatermarkDataUrl = async (logoDataUrl: string) => {
   });
 };
 
+const createPaidStampDataUrl = () => {
+  const size = 720;
+  const center = size / 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+
+  if (!context) return "";
+
+  const drawArcText = (label: string, radius: number, startAngle: number, endAngle: number, flip = false) => {
+    const chars = label.split("");
+    const angleStep = (endAngle - startAngle) / Math.max(chars.length - 1, 1);
+
+    chars.forEach((char, index) => {
+      const angle = startAngle + angleStep * index;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+
+      context.save();
+      context.translate(x, y);
+      context.rotate(angle + (flip ? -Math.PI / 2 : Math.PI / 2));
+      context.fillText(char, 0, 0);
+      context.restore();
+    });
+  };
+
+  context.clearRect(0, 0, size, size);
+  const red = "#d71920";
+  context.strokeStyle = red;
+  context.fillStyle = red;
+  context.globalAlpha = 0.86;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+
+  context.save();
+  context.translate(center, center);
+
+  context.lineWidth = 11;
+  context.beginPath();
+  context.arc(0, 0, 230, 0, Math.PI * 2);
+  context.stroke();
+
+  context.lineWidth = 5;
+  context.beginPath();
+  context.arc(0, 0, 198, 0, Math.PI * 2);
+  context.stroke();
+
+  context.lineWidth = 8;
+  context.beginPath();
+  context.arc(0, 0, 120, 0, Math.PI * 2);
+  context.stroke();
+
+  context.save();
+  context.rotate((-10 * Math.PI) / 180);
+  context.font = "900 158px Arial, Helvetica, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText("PAID", 0, 12);
+  context.restore();
+
+  context.font = "900 44px Arial, Helvetica, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  drawArcText("THANK YOU", 164, (218 * Math.PI) / 180, (322 * Math.PI) / 180);
+  drawArcText("THANK YOU", 164, (142 * Math.PI) / 180, (38 * Math.PI) / 180, true);
+
+  context.restore();
+
+  return canvas.toDataURL("image/png");
+};
+
 const buildLineItems = (order: Order) => {
   const jerseyBillable = Math.max(0, Number(order.quantity || 0) - Number(order.gift || 0));
   const rows = [
@@ -275,6 +347,14 @@ export const downloadInvoice = async (order: Order) => {
   totalRow("Delivery Charge", money(order.delivery_charge));
   totalRow("Advance Paid", money(order.advance));
   totalRow("Due Amount", money(order.due), true);
+
+  if (Number(order.due || 0) === 0) {
+    const stamp = createPaidStampDataUrl();
+    if (stamp) {
+      doc.addImage(stamp, "PNG", totalsX + 50, totalsY + 6, 140, 140, undefined, "FAST");
+      totalsY += 148;
+    }
+  }
 
   const footerY = 792;
   doc.setFont("helvetica", "normal");
