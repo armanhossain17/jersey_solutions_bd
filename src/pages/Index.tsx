@@ -20,12 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, LayoutDashboard, List, Loader2, Pencil, Phone, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, LayoutDashboard, List, Loader2, Pencil, Phone, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { type Order } from "@/components/orders/OrderForm";
 import { StatusBadge } from "@/components/orders/StatusBadge";
 import { StatsCards } from "@/components/orders/StatsCards";
 import { dummyOrdersApi } from "@/lib/dummy-orders-api";
+import { downloadInvoice } from "@/lib/invoice";
 
 const fmt = (n: number) => `BDT ${Number(n || 0).toLocaleString("en-BD")}`;
 const fmtDate = (value: string) => {
@@ -45,6 +46,7 @@ const Index = () => {
   const [view, setView] = useState<"dashboard" | "orders">("dashboard");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -96,6 +98,20 @@ const Index = () => {
     if (!order.id) return;
     setEditingId(order.id);
     navigate("/new-order", { state: { editOrder: order } });
+  };
+
+  const handleDownloadInvoice = async (order: Order) => {
+    if (!order.id) return;
+    setDownloadingId(order.id);
+    try {
+      await downloadInvoice(order);
+      toast.success("Invoice downloaded");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not download invoice";
+      toast.error(message);
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   return (
@@ -308,7 +324,10 @@ const Index = () => {
                       )}
 
                       <div className="mt-4 border-t border-border pt-3">
-                        <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                        <div className="grid grid-cols-3 gap-2 sm:flex sm:justify-end">
+                          <Button variant="secondary" size="icon" onClick={() => handleDownloadInvoice(order)} disabled={downloadingId === order.id} className="h-11 w-full rounded-2xl sm:w-11" aria-label={`Download invoice for order ${order.order_number}`}>
+                            {downloadingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                          </Button>
                           <Button variant="secondary" size="icon" onClick={() => openEdit(order)} disabled={editingId === order.id} className="h-11 w-full rounded-2xl sm:w-11" aria-label={`Edit order ${order.order_number}`}>
                             {editingId === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
                           </Button>

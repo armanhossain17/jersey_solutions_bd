@@ -549,7 +549,7 @@ export const OrderForm = ({ initial, onSaved, onCancel }: Props) => {
             </label>
           </div>
           {(form.designs?.length || form.design) && (
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className={(form.designs?.length ? form.designs : form.design ? [form.design] : []).length === 1 ? "mt-4 grid grid-cols-1 gap-2" : "mt-4 grid grid-cols-2 gap-2"}>
               {(form.designs?.length ? form.designs : form.design ? [form.design] : []).map((image, index) => (
                 <div key={`${image.slice(0, 24)}-${index}`} className="relative flex justify-center rounded-2xl border-2 border-gray-200 p-2">
                   <Button
